@@ -1,58 +1,47 @@
 # SRH-Master-Thesis-Project
-# Hybrid NLP Pipeline for Automated Skill & Technology Extraction
+# Hybrid NLP & Conversational AI Framework for Automated Skill Extraction
 
 > **Master's Thesis Research Project**  
-> An automated NLP framework combining Transformer-based Named Entity Recognition (JobBERT) and Large Language Models (OpenAI GPT) to extract, categorize, and quantify technical skills, soft skills, and tools from unstructured job postings.
+> An automated framework combining Transformer-based Named Entity Recognition (JobBERT), Large Language Models (OpenAI GPT / Anthropic Claude), and interactive chat streaming to extract, categorize, and quantify market skills from job postings.
 
 ---
 
 ## 📌 Abstract / Overview
 
-Accurate extraction and categorization of skill requirements from job descriptions are critical for labor market analysis, automated candidate matching, and educational planning. This project implements a **hybrid Natural Language Processing (NLP) framework**:
-
-1. **Initial NER Extraction**: Utilizes `jjzha/jobbert_skill_extraction` (a fine-tuned BERT architecture) alongside `spaCy` to identify token-level entities in job text.
-2. **Rule-Based Post-Processing**: Filters out generic stop words, low-frequency tokens, and noise.
-3. **LLM Refinement Layer**: Leverages OpenAI's GPT models (`gpt-3.5-turbo`) to contextualize, enhance, and categorize entities into three distinct buckets:
-   - **Technical Skills**
-   - **Non-Technical / Soft Skills**
-   - **Tools & Technologies**
-4. **Aggregated Analytics**: Aggregates output across large-scale datasets (e.g., Indeed job postings CSV) to surface top industry demand indicators.
+Extracting structured skill demands from unstructured job postings is critical for labor market analytics and automated recruitment matching. This thesis introduces a hybrid pipeline that combines:
+1. **Domain-Specific Named Entity Recognition (NER)**: Uses `jjzha/jobbert_skill_extraction` alongside `spaCy` to identify entity spans in raw text.
+2. **Rule-Based Post-Processing**: Filters generic noise, stop words, and low-confidence tokens.
+3. **Generative LLM Refinement**: Refines, contextualizes, and categorizes entities into three standard categories: **Technical Skills**, **Non-Technical / Soft Skills**, and **Tools & Technologies**.
+4. **Interactive Conversational AI Interface**: Allows recruiters and job seekers to query job descriptions, upload documents, and stream extracted skills in real time.
 
 ---
 
 ## 🏗 System Architecture
 
 ```text
- Unstructured Job Postings (CSV)
+ Unstructured Job Postings (CSV / Web Upload)
                 │
                 ▼
   [ spaCy Tokenization & Truncation ]
                 │
                 ▼
-  [ JobBERT Model (Token Classification) ] ──► Extracted B/I Entity Tags
+  [ JobBERT Token Classification (NER) ] ──► Initial Span Extraction
                 │
                 ▼
-  [ Rule-Based Text Cleaning ] ──► Removes Stop Words & Generic Terms
+  [ Rule-Based Text Cleaning ] ──► Filtering Stop Words & Noise
                 │
                 ▼
-  [ OpenAI GPT Refinement Engine ] ──► Contextual Disambiguation
+  [ OpenAI / Claude LLM Layer ] ──► Context Refinement & Deduplication
                 │
                 ▼
-  [ Aggregation & Categorization ] ──► Frequency Distribution Output
+  [ Interactive Chat / Batch Analytics ] ──► Streaming Chat UI or CSV Metrics
 ```
 
 ---
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Python 3.8+
-- An active [OpenAI API Key](https://platform.openai.com/)
+## 🚀 Quick Start
 
 ### 1. Installation
-
-Clone the repository and install the required dependencies:
 
 ```bash
 git clone [https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git)
@@ -61,27 +50,23 @@ pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
-### 2. Configuration
+### 2. Environment Variables
 
-Set your OpenAI API key in your environment variables or directly inside the script:
+Set your API keys:
 
 ```bash
 # Linux/macOS
-export OPENAI_API_KEY="your-api-key-here"
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key"
 
 # Windows (Command Prompt)
-set OPENAI_API_KEY="your-api-key-here"
+set OPENAI_API_KEY="your-openai-key"
+set ANTHROPIC_API_KEY="your-anthropic-key"
 ```
 
-### 3. Data Preparation
+### 3. Execution
 
-Place your job descriptions CSV file in the project directory. Ensure the CSV contains at least the following columns:
-- `Job Title`
-- `Job Description`
-
-Update the `csv_file_path` variable in `main()` to point to your local dataset path.
-
-### 4. Running the Pipeline
+Run batch analysis over a CSV dataset:
 
 ```bash
 python main.py
@@ -89,9 +74,7 @@ python main.py
 
 ---
 
-## 📊 Sample Output
-
-After processing the dataset, the pipeline outputs aggregated counts for the most common entities across all job descriptions:
+## 📊 Sample Batch Output
 
 ```text
 Most Common Technical Skills:
@@ -112,18 +95,47 @@ Most Common Tools and Technologies:
 
 ---
 
-## 🛠 Tech Stack
+## 💬 Future Scope: Multi-Agent AI System & Conversational Chat
 
-- **Primary Language:** Python 3.8+
-- **Transformers / Models:** Hugging Face (`transformers`), `jjzha/jobbert_skill_extraction`
-- **NLP Libraries:** `spaCy`
-- **Generative AI / LLM:** OpenAI API (`gpt-3.5-turbo`)
-- **Data Manipulation:** `csv`, `collections.Counter`
+To evolve beyond static batch processing, future iterations introduce autonomous agents and real-time streaming interfaces.
+
+### Autonomous Agent Pipeline (Claude 3.5 Sonnet)
+
+```text
+               Unstructured Job Postings (CSV / Web Scraper)
+                                    │
+                                    ▼
+                ┌───────────────────────────────────────┐
+                │        Orchestrator Agent             │
+                │        (Powered by Claude)            │
+                └──────────────────┬────────────────────┘
+                                   │
+         ┌─────────────────────────┼─────────────────────────┐
+         ▼                         ▼                         ▼
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│   BERT Named    │       │     Skill       │       │ Market Insights │
+│  Entity Agent   │       │ Standardization │       │      Agent      │
+│ (JobBERT Model) │       │   & Taxonomy    │       │ (Trend & Salary)│
+└────────┬────────┘       └────────┬────────┘       └────────┬────────┘
+         │                         │                         │
+         └─────────────────────────┼─────────────────────────┘
+                                   │
+                                   ▼
+                ┌───────────────────────────────────────┐
+                │   Structured JSON / Vector Database   │
+                └───────────────────────────────────────┘
+```
+
+### Planned Improvements
+1. **ESCO / O*NET Mapping Agents**: Automatically maps extracted skills to international standard taxonomies via tool calling.
+2. **Server-Sent Events (SSE) Streaming**: Real-time token delivery to lower UI response latency.
+3. **Multi-Turn Context & Gap Analysis**: Interactive chat system where applicants compare their CV directly against target job descriptions.
 
 ---
 
-## 📄 Citation & Attribution
+## 🛠 Tech Stack
 
-If you use this work or model in your research, please attribute the JobBERT model creators:
-
-* JobBERT model by **jjzha**: [`jjzha/jobbert_skill_extraction`](https://huggingface.co/jjzha/jobbert_skill_extraction)
+- **Languages:** Python 3.8+
+- **NLP & NER Models:** Hugging Face `transformers`, `jjzha/jobbert_skill_extraction`, `spaCy`
+- **Generative AI:** OpenAI API (`gpt-3.5-turbo`), Anthropic API (`claude-3-5-sonnet`)
+- **Backend & UI:** FastAPI, Streamlit
