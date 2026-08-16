@@ -1,0 +1,145 @@
+import os
+import csv
+from collections import Counter
+import openai
+import spacy
+from spacy.lang.en.stop_words import STOP_WORDS
+from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
+
+# Set OpenAI API key from environment variable
+openai.api_key = os.getenv("OPENAI_API_KEY", "")
+
+# Load spaCy model
+nlp = spacy.load('en_core_web_sm')
+
+# Load BERT model and tokenizer for skill extraction
+tokenizer = AutoTokenizer.from_pretrained("jjzha/jobbert_skill_extraction")
+model = AutoModelForTokenClassification.from_pretrained("jjzha/jobbert_skill_extraction")
+skill_extraction_pipeline = pipeline("token-classification", model=model, tokenizer=tokenizer)
+
+GENERIC_TERMS = set([
+    "identify", "provide", "develop", "ensure", "support", "work", "perform", 
+    "collaborate", "manage", "data", "analysis", "business", "reports", "skills", 
+    "needs", "complex", "results", "requirements", "systematic"
+])
+
+def clean_bert_output(skills):
+    """Clean BERT output by removing stop words, generic terms, and short tokens."""
+    filtered_skills = []
+    for skill in skills:
+        skill = skill.strip().lower()
+        if skill not in STOP_WORDS and skill not in GENERIC_TERMS and skill.isalpha() and len(skill) > 2:
+            filtered_skills.append(skill)
+    return filtered_skills
+
+def call_openai_api(prompt):
+    """Call OpenAI API to refine extracted skills and reduce noise."""
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an assistant that refines and enhances skill extraction from job descriptions into technical skills, non-technical skills, and tools/technologies."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=500
+        )
+        return response.choices[0].message['content'].strip()
+    except Exception as e:
+        print(f"Error during OpenAI API request: {e}")
+        return ""
+
+def parse_openai_response(response):
+    """Parse structured text from OpenAI response."""
+    lines = response.split('\n')
+    technical, non_technical, tools = [], [], []
+    current_category = None
+
+    for line in lines:
+        line = line.strip()
+        line_lower = line.lower()
+        if line_lower.startswith('technical skills:'):
+            current_category = technical
+        elif line_lower.startswith('non-technical skills:'):
+            current_category = non_technical
+        elif line_lower.startswith('tools and technologies:'):
+            current_category = tools
+        elif line and current_category is not None:
+            current_category.append(line.strip('-').strip())
+
+    return technical, non_technical, tools
+
+def get_skills_for_job_title(job_title, job_description):
+    """Extract skills using JobBERT NER and refine results with OpenAI GPT."""
+    try:
+        max_length = min(tokenizer.model_max_length, 512)
+    except AttributeError:
+        max_length = 512
+
+    try:
+        tokens = tokenizer(job_description, truncation=True, max_length=max_length, return_tensors='pt')
+        job_description_text = tokenizer.decode(tokens['input_ids'][0], skip_special_tokens=True)
+    except Exception as e:
+        print(f"Error during tokenization: {e}")
+        job_description_text = job_description
+
+    try:
+        results = skill_extraction_pipeline(job_description_text)
+        raw_tech = [res['word'] for res in results if res['entity'].startswith('B')]
+        raw_non_tech = [res['word'] for res in results if res['entity'].startswith('I')]
+        tech_keywords = clean_bert_output(raw_tech)
+        non_tech_keywords = clean_bert_output(raw_non_tech)
+    except Exception as e:
+        print(f"Error during skill extraction pipeline execution: {e}")
+        tech_keywords, non_tech_keywords = [], []
+
+    combined_skills_text = (
+        f"Extracted Technical Skills:\n{', '.join(tech_keywords) if tech_keywords else 'None'}\n"
+        f"Extracted Non-Technical Skills:\n{', '.join(non_tech_keywords) if non_tech_keywords else 'None'}\n"
+    )
+
+    prompt = (
+        f"Refine and enhance the following extracted skills and identify any additional tools/technologies:\n\n"
+        f"Job Description:\n{job_description}\n\n"
+        f"{combined_skills_text}\n"
+        f"Tools and Technologies:\n"
+    )
+
+    openai_response = call_openai_api(prompt)
+    add_tech, add_non_tech, tools = parse_openai_response(openai_response)
+
+    return {
+        'technical_keywords': list(set(tech_keywords + add_tech)),
+        'non_technical_keywords': list(set(non_tech_keywords + add_non_tech)),
+        'tools_and_technologies': tools
+    }
+
+def main():
+    csv_file_path = 'data/Data_Analyst_Indeed_Jobs.csv'
+    tech_counter, non_tech_counter, tools_counter = Counter(), Counter(), Counter()
+
+    if not os.path.exists(csv_file_path):
+        print(f"File not found: {csv_file_path}")
+        return
+
+    with open(csv_file_path, 'r', encoding='latin-1') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            results = get_skills_for_job_title(row['Job Title'], row['Job Description'].lower())
+            tech_counter.update(results['technical_keywords'])
+            non_tech_counter.update(results['non_technical_keywords'])
+            tools_counter.update(results['tools_and_technologies'])
+
+    print("\nMost Common Technical Skills:")
+    for skill, count in tech_counter.most_common(10):
+        print(f"{skill}: {count}")
+
+    print("\nMost Common Non-Technical Skills:")
+    for skill, count in non_tech_counter.most_common(10):
+        print(f"{skill}: {count}")
+
+    print("\nMost Common Tools and Technologies:")
+    for tool, count in tools_counter.most_common(10):
+        print(f"{tool}: {count}")
+
+if __name__ == '__main__':
+    main()
